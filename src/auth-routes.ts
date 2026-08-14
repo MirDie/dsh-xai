@@ -14,6 +14,7 @@ export const XAI_OAUTH_AUTH_STATUS_PATH = '/plugins/dsh-xai/auth/status'
 export const XAI_OAUTH_AUTH_LOGIN_PATH = '/plugins/dsh-xai/auth/login'
 export const XAI_OAUTH_AUTH_IMPORT_PATH = '/plugins/dsh-xai/auth/import'
 export const XAI_OAUTH_AUTH_LOGOUT_PATH = '/plugins/dsh-xai/auth/logout'
+export const XAI_OAUTH_AUTH_MODELS_PATH = '/plugins/dsh-xai/auth/models'
 
 export type XaiOAuthWebAuthStatus =
   | { status: 'signed-out'; grokImportAvailable: boolean }
@@ -21,6 +22,8 @@ export type XaiOAuthWebAuthStatus =
   | {
     status: 'signed-in'
     models: string[]
+    available: string[]
+    selected: string[]
     catalogSource: CatalogSource
     catalogError?: string
     grokImportAvailable: boolean
@@ -76,6 +79,11 @@ export class XaiOAuthWebAuth {
     await this.operation?.catch(() => undefined)
     await importXaiOAuthSession(this.session)
     this.challenge = undefined
+    this.state = await this.readStoredStatus()
+  }
+
+  async setModels(ids: readonly string[]): Promise<void> {
+    await this.session.setSelectedModels(ids)
     this.state = await this.readStoredStatus()
   }
 
@@ -158,9 +166,13 @@ export class XaiOAuthWebAuth {
   private async readStoredStatus(): Promise<XaiOAuthWebAuthStatus> {
     const [stored, grok] = await Promise.all([xaiOAuthAuthStatus(this.session.store), grokImportAvailable()])
     if (!stored.authenticated) return { status: 'signed-out', grokImportAvailable: grok }
+    const available = this.session.availableModels().map(model => model.id)
+    const selected = this.session.selectedModelIds()
     return {
       status: 'signed-in',
       models: this.session.visibleModels().map(model => model.id),
+      available,
+      selected: selected ?? available,
       catalogSource: this.session.catalogSource,
       grokImportAvailable: grok,
       ...this.session.catalogError === undefined ? {} : { catalogError: this.session.catalogError },
@@ -185,6 +197,14 @@ function trustedRequest(req: IncomingMessage): boolean {
   } catch {
     return false
   }
+}
+
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  const text = Buffer.concat(chunks).toString('utf8').trim()
+  if (text.length === 0) return {}
+  return JSON.parse(text) as unknown
 }
 
 function json(res: ServerResponse, status: number, value: unknown): void {
@@ -234,6 +254,27 @@ export function registerXaiOAuthAuthRoutes(
           if (!trustedRequest(req)) return json(res, 403, { error: 'forbidden' })
           try {
             await auth.importGrok()
+            json(res, 200, await auth.status())
+          } catch (error: unknown) {
+            json(res, 500, { error: safeMessage(error) })
+          }
+        },
+      }),
+      ctx.webServer.register({
+        kind: 'exact',
+        path: XAI_OAUTH_AUTH_MODELS_PATH,
+        handler: async (req, res) => {
+          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+          if (!trustedRequest(req)) return json(res, 403, { error: 'forbidden' })
+          try {
+            const body = await readJson(req)
+            const selected = typeof body === 'object' && body !== null && 'selected' in body
+              ? body.selected
+              : undefined
+            if (!Array.isArray(selected) || selected.some(id => typeof id !== 'string')) {
+              return json(res, 400, { error: 'selected must be an array of model ids' })
+            }
+            await auth.setModels(selected)
             json(res, 200, await auth.status())
           } catch (error: unknown) {
             json(res, 500, { error: safeMessage(error) })

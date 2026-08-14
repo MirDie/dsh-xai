@@ -42,18 +42,23 @@ declare class XaiOAuthSession {
   readonly models: MutableModels;
   private readonly baseline;
   private liveIds;
+  private selectedIds;
   private source;
   private listingError;
   private readonly cacheFile;
-  constructor(store?: XaiOAuthCredentialStore);
+  private onCatalogChange;
+  constructor(store?: XaiOAuthCredentialStore, onCatalogChange?: () => void);
   /** Secret-free listing diagnostic from the last refresh. */
   get catalogError(): string | undefined;
   get catalogSource(): CatalogSource;
+  availableModels(): Model<Api>[];
+  selectedModelIds(): string[] | undefined;
   visibleModels(): Model<Api>[];
-  /** Provider whose getModels() reflects the current live/cache/fallback list. */
+  /** Provider whose id matches the harness route so PiAiAdapter can list models. */
   provider(): Provider;
   loadCachedCatalog(): Promise<void>;
   refreshLiveCatalog(signal?: AbortSignal): Promise<void>;
+  setSelectedModels(ids: readonly string[]): Promise<void>;
   logout(): Promise<void>;
   private writeCache;
 }
@@ -93,6 +98,7 @@ declare const XAI_OAUTH_AUTH_STATUS_PATH = "/plugins/dsh-xai/auth/status";
 declare const XAI_OAUTH_AUTH_LOGIN_PATH = "/plugins/dsh-xai/auth/login";
 declare const XAI_OAUTH_AUTH_IMPORT_PATH = "/plugins/dsh-xai/auth/import";
 declare const XAI_OAUTH_AUTH_LOGOUT_PATH = "/plugins/dsh-xai/auth/logout";
+declare const XAI_OAUTH_AUTH_MODELS_PATH = "/plugins/dsh-xai/auth/models";
 type XaiOAuthWebAuthStatus = {
   status: 'signed-out';
   grokImportAvailable: boolean;
@@ -104,6 +110,8 @@ type XaiOAuthWebAuthStatus = {
 } | {
   status: 'signed-in';
   models: string[];
+  available: string[];
+  selected: string[];
   catalogSource: CatalogSource;
   catalogError?: string;
   grokImportAvailable: boolean;
@@ -163,4 +171,4 @@ declare const Config: z<Config>;
  */
 declare function apply(ctx: Context, _config: Config): void;
 //#endregion
-export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };
+export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };

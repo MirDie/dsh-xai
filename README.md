@@ -49,6 +49,8 @@ dsh plugin --profile web exec dsh-xai logout
 
 The bundle selects `xai-oauth` / `grok-4.5` for new agents. A model already saved in dsh settings still takes precedence.
 
+The Settings page can choose which account models appear in the composer picker (`xai-oauth / <id>`). After updating the plugin, restart `dsh web` if the picker is still empty.
+
 See [INSTALL.md](INSTALL.md) / [INSTALL.zh.md](INSTALL.zh.md) for the full runbook.
 
 ## Credentials

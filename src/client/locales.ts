@@ -22,6 +22,8 @@ export const en = {
   catalogCache: 'From the last successful listing',
   catalogFallback: 'Installed catalog (live listing unavailable)',
   catalogError: 'Could not refresh the live model list.',
+  selectAll: 'Show all',
+  modelHint: 'Checked models appear in the composer picker as xai-oauth / <id>.',
 }
 
 export type XaiOAuthSettingsKey = keyof typeof en
@@ -49,4 +51,6 @@ export const zh: { [Key in XaiOAuthSettingsKey]: string } = {
   catalogCache: '来自上一次成功拉取',
   catalogFallback: '已安装目录（未能拉取账号列表）',
   catalogError: '无法刷新线上模型列表。',
+  selectAll: '全部显示',
+  modelHint: '勾选的模型会出现在对话的模型选择器里，名字是 xai-oauth / 模型 id。',
 }

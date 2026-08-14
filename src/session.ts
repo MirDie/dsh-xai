@@ -15,16 +15,23 @@ import {
   mergeLiveCatalog,
   type CatalogSource,
 } from './catalog.ts'
-import { XAI_PI_PROVIDER } from './ids.ts'
+import { materializeLiveModel } from './catalog.ts'
+import { XAI_OAUTH_ROUTE, XAI_PI_PROVIDER } from './ids.ts'
 import { XaiOAuthCredentialStore } from './store.ts'
 
-const MODELS_CACHE_VERSION = 1
+const MODELS_CACHE_VERSION = 2
 const MODELS_CACHE_FILENAME = '.xai-oauth-models.json'
 
 interface ModelsCacheDocument {
   version: typeof MODELS_CACHE_VERSION
   ids: string[]
+  selected?: string[]
   fetchedAt: number
+}
+
+interface ParsedCache {
+  ids: string[]
+  selected?: string[]
 }
 
 function isENOENT(error: unknown): boolean {
@@ -35,7 +42,12 @@ function modelsCachePath(dshHome?: string): string {
   return resolve(join(resolveDshHome(dshHome), MODELS_CACHE_FILENAME))
 }
 
-function parseCache(text: string): string[] | undefined {
+function parseIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((id): id is string => typeof id === 'string' && id.length > 0))]
+}
+
+function parseCache(text: string): ParsedCache | undefined {
   let value: unknown
   try {
     value = JSON.parse(text)
@@ -44,10 +56,18 @@ function parseCache(text: string): string[] | undefined {
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const document = value as Record<string, unknown>
-  if (document['version'] !== MODELS_CACHE_VERSION) return undefined
-  if (!Array.isArray(document['ids'])) return undefined
-  const ids = document['ids'].filter((id): id is string => typeof id === 'string' && id.length > 0)
-  return ids.length === 0 ? undefined : ids
+  if (document['version'] !== 1 && document['version'] !== MODELS_CACHE_VERSION) return undefined
+  const ids = parseIdList(document['ids'])
+  const selected = parseIdList(document['selected'])
+  if (ids.length === 0 && selected.length === 0) return undefined
+  return {
+    ids,
+    ...selected.length === 0 ? {} : { selected },
+  }
+}
+
+function asHarnessModels(models: readonly Model<Api>[]): Model<Api>[] {
+  return models.map(model => model.provider === XAI_OAUTH_ROUTE ? model : { ...model, provider: XAI_OAUTH_ROUTE })
 }
 
 function requestProvider(provider: Provider): Provider {
@@ -74,16 +94,22 @@ export class XaiOAuthSession {
   readonly models: MutableModels
   private readonly baseline: Provider
   private liveIds: string[] | undefined
+  private selectedIds: string[] | undefined
   private source: CatalogSource = 'fallback'
   private listingError: string | undefined
   private readonly cacheFile: string
+  private onCatalogChange: (() => void) | undefined
 
-  constructor(store: XaiOAuthCredentialStore = new XaiOAuthCredentialStore()) {
+  constructor(
+    store: XaiOAuthCredentialStore = new XaiOAuthCredentialStore(),
+    onCatalogChange?: () => void,
+  ) {
     this.store = store
     this.cacheFile = modelsCachePath()
     this.baseline = xaiProvider()
     this.models = createModels({ credentials: store })
     this.models.setProvider(this.baseline)
+    this.onCatalogChange = onCatalogChange
   }
 
   /** Secret-free listing diagnostic from the last refresh. */
@@ -95,24 +121,41 @@ export class XaiOAuthSession {
     return this.source
   }
 
-  visibleModels(): Model<Api>[] {
+  availableModels(): Model<Api>[] {
     return mergeLiveCatalog(this.baseline.getModels(), this.liveIds)
   }
 
-  /** Provider whose getModels() reflects the current live/cache/fallback list. */
+  selectedModelIds(): string[] | undefined {
+    return this.selectedIds
+  }
+
+  visibleModels(): Model<Api>[] {
+    const available = this.availableModels()
+    if (this.selectedIds === undefined || this.selectedIds.length === 0) return available
+    const byId = new Map(available.map(model => [model.id, model]))
+    const catalog = this.baseline.getModels()
+    return this.selectedIds.map(id => byId.get(id) ?? materializeLiveModel(id, catalog))
+  }
+
+  /** Provider whose id matches the harness route so PiAiAdapter can list models. */
   provider(): Provider {
     return {
       ...requestProvider(this.baseline),
-      getModels: () => this.visibleModels(),
+      id: XAI_OAUTH_ROUTE,
+      name: 'xAI Grok',
+      getModels: () => asHarnessModels(this.visibleModels()),
     }
   }
 
   async loadCachedCatalog(): Promise<void> {
     try {
-      const ids = parseCache(await readFile(this.cacheFile, 'utf8'))
-      if (ids === undefined) return
-      this.liveIds = ids
-      this.source = 'cache'
+      const cache = parseCache(await readFile(this.cacheFile, 'utf8'))
+      if (cache === undefined) return
+      if (cache.ids.length > 0) {
+        this.liveIds = cache.ids
+        this.source = 'cache'
+      }
+      this.selectedIds = cache.selected
     } catch (error) {
       if (!isENOENT(error)) throw error
     }
@@ -130,27 +173,38 @@ export class XaiOAuthSession {
       this.liveIds = ids
       this.source = 'live'
       this.listingError = undefined
-      await this.writeCache(ids)
+      await this.writeCache()
+      this.onCatalogChange?.()
     } catch (error) {
       this.listingError = error instanceof Error ? error.message : String(error)
       if (this.liveIds === undefined) this.source = 'fallback'
     }
   }
 
+  async setSelectedModels(ids: readonly string[]): Promise<void> {
+    const unique = [...new Set(ids.filter(id => id.length > 0))]
+    this.selectedIds = unique.length === 0 ? undefined : unique
+    await this.writeCache()
+    this.onCatalogChange?.()
+  }
+
   async logout(): Promise<void> {
     await this.store.delete(XAI_PI_PROVIDER)
     this.liveIds = undefined
+    this.selectedIds = undefined
     this.source = 'fallback'
     this.listingError = undefined
     await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 })
     await rm(this.cacheFile, { force: true })
+    this.onCatalogChange?.()
   }
 
-  private async writeCache(ids: readonly string[]): Promise<void> {
+  private async writeCache(): Promise<void> {
     const document: ModelsCacheDocument = {
       version: MODELS_CACHE_VERSION,
-      ids: [...ids],
+      ids: this.liveIds === undefined ? [] : [...this.liveIds],
       fetchedAt: Date.now(),
+      ...this.selectedIds === undefined ? {} : { selected: [...this.selectedIds] },
     }
     await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 })
     await writeFileAtomic(this.cacheFile, `${JSON.stringify(document)}\n`, {

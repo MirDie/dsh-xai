@@ -18,3 +18,19 @@ describe('preferredXaiOAuthModel', () => {
     expect(provider.getModels().length).toBeGreaterThan(0)
   })
 })
+
+describe('XaiOAuthSession.provider', () => {
+  it('registers models under the harness route so the picker can find them', async () => {
+    const { createModels } = await import('@earendil-works/pi-ai')
+    const { XAI_OAUTH_ROUTE } = await import('../src/ids.ts')
+    const { XaiOAuthSession } = await import('../src/session.ts')
+    const session = new XaiOAuthSession()
+    const provider = session.provider()
+    expect(provider.id).toBe(XAI_OAUTH_ROUTE)
+    const models = createModels()
+    models.setProvider(provider)
+    const listed = models.getModels(XAI_OAUTH_ROUTE)
+    expect(listed.length).toBeGreaterThan(0)
+    expect(listed.every(model => model.provider === XAI_OAUTH_ROUTE)).toBe(true)
+  })
+})

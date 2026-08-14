@@ -42,6 +42,8 @@ dsh plugin --profile web exec dsh-xai logout
 
 新会话默认选 `xai-oauth` / `grok-4.5`。dsh 里已经存过的默认模型仍然优先。
 
+设置页可以勾选要出现在模型选择器里的模型。名称形如 `xai-oauth / grok-4.5`。登录后如果选择器还是空的，更新插件并重启 `dsh web`。
+
 只有在改这个插件本身时，才需要把仓库拉到本地，再用路径安装：
 
 ```sh

@@ -8,6 +8,7 @@ const STATUS_PATH = '/plugins/dsh-xai/auth/status'
 const LOGIN_PATH = '/plugins/dsh-xai/auth/login'
 const IMPORT_PATH = '/plugins/dsh-xai/auth/import'
 const LOGOUT_PATH = '/plugins/dsh-xai/auth/logout'
+const MODELS_PATH = '/plugins/dsh-xai/auth/models'
 const POLL_INTERVAL_MS = 1_000
 
 type CatalogSource = 'live' | 'cache' | 'fallback'
@@ -19,6 +20,8 @@ type AccountStatus =
   | {
     status: 'signed-in'
     models?: string[]
+    available?: string[]
+    selected?: string[]
     catalogSource?: CatalogSource
     catalogError?: string
     grokImportAvailable?: boolean
@@ -47,6 +50,8 @@ const primaryButtonStyle: CSSProperties = { ...buttonStyle, borderColor: 'var(--
 const errorStyle: CSSProperties = { ...bodyStyle, color: 'var(--dsw-alias-state-error-primary)' }
 const codeStyle: CSSProperties = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 20, letterSpacing: '0.08em', fontWeight: 600, color: 'var(--dsw-alias-label-primary)' }
 const linkStyle: CSSProperties = { color: 'var(--dsw-alias-brand-primary)', wordBreak: 'break-all' }
+const listStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, margin: 0, padding: 0, listStyle: 'none' }
+const checkRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--dsw-alias-label-primary)' }
 
 function dotStyle(status: AccountStatus['status']): CSSProperties {
   const color = status === 'signed-in'
@@ -59,11 +64,12 @@ function dotStyle(status: AccountStatus['status']): CSSProperties {
   return { width: 9, height: 9, borderRadius: '50%', flex: '0 0 auto', background: color }
 }
 
-async function jsonRequest<T>(path: string, method = 'GET'): Promise<T> {
+async function jsonRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
-    headers: { accept: 'application/json' },
+    headers: { accept: 'application/json', ...body === undefined ? {} : { 'content-type': 'application/json' } },
     credentials: 'same-origin',
+    ...body === undefined ? {} : { body: JSON.stringify(body) },
   })
   const value: unknown = await response.json().catch(() => undefined)
   if (!response.ok) {
@@ -128,6 +134,17 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
     }
   }
 
+  const saveModels = async (selected: string[]): Promise<void> => {
+    setBusy(true)
+    try {
+      setStatus(await jsonRequest<AccountStatus>(MODELS_PATH, 'POST', { selected }))
+    } catch (error: unknown) {
+      setStatus({ status: 'error', message: error instanceof Error ? error.message : t('requestFailed') })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const signOut = async (): Promise<void> => {
     setBusy(true)
     try {
@@ -182,15 +199,39 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
         {status.status === 'signed-in'
           ? (
               <div>
-                <h3 style={{ ...titleStyle, fontSize: 14 }}>{t('models')}</h3>
+                <div style={rowStyle}>
+                  <h3 style={{ ...titleStyle, fontSize: 14 }}>{t('models')}</h3>
+                  <button type="button" style={buttonStyle} disabled={busy} onClick={() => { void saveModels([]) }}>{t('selectAll')}</button>
+                </div>
                 <p style={bodyStyle}>
                   {status.catalogSource === 'live' ? t('catalogLive')
                     : status.catalogSource === 'cache' ? t('catalogCache')
                       : t('catalogFallback')}
                 </p>
-                {status.models !== undefined && status.models.length > 0
-                  ? <p style={{ ...bodyStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>{status.models.join(', ')}</p>
-                  : null}
+                <p style={bodyStyle}>{t('modelHint')}</p>
+                <ul style={listStyle}>
+                  {(status.available ?? status.models ?? []).map(id => {
+                    const checked = (status.selected ?? status.models ?? []).includes(id)
+                    return (
+                      <li key={id}>
+                        <label style={checkRowStyle}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={busy}
+                            onChange={() => {
+                              const current = new Set(status.selected ?? status.available ?? [])
+                              if (checked) current.delete(id)
+                              else current.add(id)
+                              void saveModels([...current])
+                            }}
+                          />
+                          <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>{id}</span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
                 {status.catalogError === undefined ? null : <p style={errorStyle}>{t('catalogError')}</p>}
               </div>
             )

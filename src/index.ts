@@ -8,10 +8,12 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-llm'
 import { createXaiOAuthAdapter } from './adapter.ts'
 import { registerXaiOAuthAuthRoutes } from './auth-routes.ts'
 import { XAI_OAUTH_ROUTE } from './ids.ts'
 import { XaiOAuthSession } from './session.ts'
+import { XaiOAuthCredentialStore } from './store.ts'
 
 export { createXaiOAuthAdapter, preferredXaiOAuthModel } from './adapter.ts'
 export {
@@ -28,6 +30,7 @@ export {
   XAI_OAUTH_AUTH_IMPORT_PATH,
   XAI_OAUTH_AUTH_LOGIN_PATH,
   XAI_OAUTH_AUTH_LOGOUT_PATH,
+  XAI_OAUTH_AUTH_MODELS_PATH,
   XAI_OAUTH_AUTH_STATUS_PATH,
 } from './auth-routes.ts'
 export type { LoginChallenge, XaiOAuthWebAuthStatus } from './auth-routes.ts'
@@ -69,7 +72,9 @@ export const Config: z<Config> = z.object({})
  * @param ctx - plugin context carrying the LLM registry plus optional web server.
  */
 export function apply(ctx: Context, _config: Config): void {
-  const session = new XaiOAuthSession()
+  const session = new XaiOAuthSession(new XaiOAuthCredentialStore(), () => {
+    ctx.emit('llm/adapters-updated')
+  })
   void session.loadCachedCatalog().then(() => session.refreshLiveCatalog())
   ctx.llm.registerAdapter(
     [XAI_OAUTH_ROUTE],
