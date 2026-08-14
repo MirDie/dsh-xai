@@ -1,5 +1,7 @@
 # Install dsh-xai
 
+[English](INSTALL.md) | [中文](INSTALL.zh.md)
+
 Idempotent runbook for humans and automation agents.
 
 ## Prerequisites
@@ -10,16 +12,16 @@ Idempotent runbook for humans and automation agents.
 
 ## Install into the web profile
 
-From this checkout:
+Do not clone first. Point `dsh plugin add` at GitHub:
 
 ```sh
-dsh plugin --profile web add .
+dsh plugin --profile web add github:MirDie/dsh-xai
 ```
 
 From a DeepSeek Harness source checkout, prefix with `pnpm`:
 
 ```sh
-pnpm dsh plugin --profile web add /absolute/path/to/XProvider
+pnpm dsh plugin --profile web add github:MirDie/dsh-xai
 ```
 
 If pnpm ≥10 blocks the `prepare` build on a git spec, copy the printed package key into the profile's `pnpm-workspace.yaml`:
@@ -29,7 +31,17 @@ allowBuilds:
   dsh-xai: true
 ```
 
-and re-run `add`. A local checkout or a published tarball does not need that allowance after `pnpm run build`.
+and re-run `add`. This repository already ships `lib/`, so a local checkout used for development does not need a rebuild after `npm run build`.
+
+## Clone only for development
+
+```sh
+git clone https://github.com/MirDie/dsh-xai.git
+cd dsh-xai
+npm install
+npm run check
+dsh plugin --profile web add .
+```
 
 ## Sign in
 

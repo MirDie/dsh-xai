@@ -41,6 +41,7 @@
     "src",
     "cordis.patch.yml",
     "INSTALL.md",
+    "INSTALL.zh.md",
     "LICENSE"
   ],
   "license": "Apache-2.0",

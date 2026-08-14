@@ -1,5 +1,7 @@
 # dsh-xai
 
+English | [中文](README.zh.md)
+
 Use a SuperGrok or X Premium subscription in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) through xAI's device-code sign-in — no `XAI_API_KEY` required, and no dsh source patch required.
 
 This is an independent dsh bundle. It adds:
@@ -13,16 +15,24 @@ The catalog `xai` API-key route stays untouched. This plugin registers `xai-oaut
 
 ## Install
 
+You do **not** need to clone this repository first. `dsh plugin add` fetches the package into the profile:
+
 ```sh
-dsh plugin --profile web add .
+dsh plugin --profile web add github:MirDie/dsh-xai
 dsh web
 ```
 
-From a published package:
+From a DeepSeek Harness source checkout, prefix with `pnpm`:
 
 ```sh
-dsh plugin --profile web add dsh-xai
-dsh web
+pnpm dsh plugin --profile web add github:MirDie/dsh-xai
+```
+
+Clone only when you are changing this plugin:
+
+```sh
+git clone https://github.com/MirDie/dsh-xai.git
+dsh plugin --profile web add ./dsh-xai
 ```
 
 Open **Settings → xAI Grok → Sign in with SuperGrok**. The plugin starts xAI's device-code flow, opens the verification URL, and polls until you approve. Headless / SSH hosts can use the CLI instead:
@@ -35,6 +45,8 @@ dsh plugin --profile web exec dsh-xai logout
 ```
 
 The bundle selects `xai-oauth` / `grok-4.5` for new agents. A model already saved in dsh settings still takes precedence.
+
+See [INSTALL.md](INSTALL.md) / [INSTALL.zh.md](INSTALL.zh.md) for the full runbook.
 
 ## Credentials
 
@@ -56,8 +68,8 @@ xAI refresh tokens rotate. After import, the next dsh refresh may invalidate Gro
 ## Development
 
 ```sh
-pnpm install
-pnpm run check
+npm install
+npm run check
 ```
 
 ## License
