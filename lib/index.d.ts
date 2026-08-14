@@ -5,6 +5,8 @@ import { Context } from "@deepseek-ai/cordis";
 import { AttachmentStore } from "@deepseek-ai/dsh-attachment";
 //#region src/catalog.d.ts
 declare const XAI_MODELS_URL = "https://api.x.ai/v1/models";
+/** Chat-capable Grok ids, plus anything already in the installed catalog. */
+declare function isSelectableChatModel(id: string, catalogIds?: ReadonlySet<string>): boolean;
 type CatalogSource = 'live' | 'cache' | 'fallback';
 /** Pull model ids from an OpenAI-shaped or gateway-shaped listing body. */
 declare function extractModelIds(body: unknown): string[];
@@ -47,7 +49,10 @@ declare class XaiOAuthSession {
   private listingError;
   private readonly cacheFile;
   private onCatalogChange;
-  constructor(store?: XaiOAuthCredentialStore, onCatalogChange?: () => void);
+  private catalogGeneration;
+  constructor(store?: XaiOAuthCredentialStore, onCatalogChange?: () => void, options?: {
+    cacheFile?: string;
+  });
   /** Secret-free listing diagnostic from the last refresh. */
   get catalogError(): string | undefined;
   get catalogSource(): CatalogSource;
@@ -57,6 +62,11 @@ declare class XaiOAuthSession {
   /** Provider whose id matches the harness route so PiAiAdapter can list models. */
   provider(): Provider;
   loadCachedCatalog(): Promise<void>;
+  /**
+   * OAuth bearer only. Never falls through to `XAI_API_KEY`.
+   * Terminal refresh failures clear the stored grant.
+   */
+  accessToken(): Promise<string | undefined>;
   refreshLiveCatalog(signal?: AbortSignal): Promise<void>;
   setSelectedModels(ids: readonly string[]): Promise<void>;
   logout(): Promise<void>;
@@ -92,6 +102,29 @@ declare function xaiOAuthAuthStatus(store?: XaiOAuthCredentialStore): Promise<Xa
 /** Login then refresh the account model list when a session is available. */
 declare function loginXaiOAuthSession(interaction: AuthInteraction, session: XaiOAuthSession): Promise<void>;
 declare function importXaiOAuthSession(session: XaiOAuthSession, filename?: string): Promise<void>;
+//#endregion
+//#region src/trust.d.ts
+/** Loopback Host fence and secret-free authorization URL checks. */
+declare const XAI_AUTH_HOSTS: readonly ["auth.x.ai", "accounts.x.ai"];
+/** True when Host is a loopback authority (DNS-rebinding defense). */
+declare function isLoopbackHost(hostHeader: string): boolean;
+/**
+ * Same reachability posture as dsh `/api`: loopback socket + loopback Host.
+ * Origin, when present, must match Host. Cross-site Fetch Metadata is refused.
+ */
+declare function trustedRequest(req: {
+  socket: {
+    remoteAddress?: string;
+  };
+  headers: {
+    host?: string;
+    origin?: string;
+    'sec-fetch-site'?: string | string[];
+  };
+}): boolean;
+/** Reject non-HTTPS URLs and hosts other than xAI's auth servers. */
+declare function assertSafeAuthorizationUrl(raw: string): string;
+declare function isTerminalOAuthFailure(error: unknown): boolean;
 //#endregion
 //#region src/auth-routes.d.ts
 declare const XAI_OAUTH_AUTH_STATUS_PATH = "/plugins/dsh-xai/auth/status";
@@ -132,7 +165,11 @@ interface GrokImportProbe {
   available: boolean;
   path: string;
 }
-/** Resolve the Grok CLI auth document. */
+/**
+ * Resolve the Grok CLI auth document.
+ * With no `home` argument, honor `GROK_HOME` (the Grok config root) then `~/.grok`.
+ * An explicit `home` is treated as the user home, matching `~/.grok/auth.json`.
+ */
 declare function grokAuthPath(home?: string): string;
 /** Parse a Grok CLI / generic OAuth document into a pi-ai credential. */
 declare function parseGrokAuthDocument(text: string, filename: string): OAuthCredential;
@@ -171,4 +208,4 @@ declare const Config: z<Config>;
  */
 declare function apply(ctx: Context, _config: Config): void;
 //#endregion
-export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };
+export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_AUTH_HOSTS, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, assertSafeAuthorizationUrl, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, isLoopbackHost, isSelectableChatModel, isTerminalOAuthFailure, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, trustedRequest, xaiOAuthAuthPath, xaiOAuthAuthStatus };

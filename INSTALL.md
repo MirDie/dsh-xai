@@ -50,7 +50,7 @@ Web UI:
 1. `dsh web` (or `dsh --profile web`)
 2. Settings → xAI Grok → Sign in with SuperGrok
 3. Approve access in the browser
-4. Pick `xai-oauth` / `grok-4.5` in the model picker if it is not already selected
+4. Pick `xai-oauth` / a Grok chat model in the composer if it is not already selected. This bundle does not replace the profile's default model.
 
 CLI / headless:
 
@@ -60,7 +60,7 @@ dsh plugin --profile web exec dsh-xai import
 dsh plugin --profile web exec dsh-xai status
 ```
 
-`import` reads `~/.grok/auth.json` and writes only `$DSH_HOME/.xai-oauth-auth.json`. After a successful login or import the plugin calls `GET /v1/models` and caches the account-visible ids.
+`import` reads `$GROK_HOME/auth.json` (default `~/.grok/auth.json`) and writes only `$DSH_HOME/.xai-oauth-auth.json`. After a successful login or import the plugin calls `GET /v1/models` and caches the account-visible chat model ids.
 
 ## Uninstall
 

@@ -3,6 +3,7 @@
  * @module dsh-xai/store
  */
 
+import { spawn } from 'node:child_process'
 import { mkdir, readFile, rm, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { Credential, CredentialInfo, CredentialStore, OAuthCredential } from '@earendil-works/pi-ai'
@@ -20,6 +21,20 @@ interface AuthDocument {
 
 function isENOENT(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
+}
+
+async function restrictWindowsAcl(filename: string): Promise<void> {
+  if (process.platform !== 'win32') return
+  const user = process.env['USERNAME']
+  if (user === undefined || user.length === 0) return
+  await new Promise<void>(resolvePromise => {
+    const child = spawn('icacls', [filename, '/inheritance:r', '/grant:r', `${user}:(R,W)`], {
+      windowsHide: true,
+      stdio: 'ignore',
+    })
+    child.on('error', () => { resolvePromise() })
+    child.on('exit', () => { resolvePromise() })
+  })
 }
 
 async function assertOwnerOnly(filename: string): Promise<void> {
@@ -139,6 +154,7 @@ export class XaiOAuthCredentialStore implements CredentialStore {
         mode: 0o600,
         dirMode: 0o700,
       })
+      await restrictWindowsAcl(this.filename)
       return cloneCredential(document.credential)
     })
   }

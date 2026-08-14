@@ -76,4 +76,15 @@ describe('grokAuthPath', () => {
   it('resolves under the given home', () => {
     expect(grokAuthPath('/tmp/home').replaceAll('\\', '/')).toMatch(/\/tmp\/home\/.grok\/auth\.json$/)
   })
+
+  it('honors GROK_HOME when no home argument is given', () => {
+    const previous = process.env['GROK_HOME']
+    process.env['GROK_HOME'] = '/custom/grok-root'
+    try {
+      expect(grokAuthPath().replaceAll('\\', '/')).toMatch(/\/custom\/grok-root\/auth\.json$/)
+    } finally {
+      if (previous === undefined) delete process.env['GROK_HOME']
+      else process.env['GROK_HOME'] = previous
+    }
+  })
 })

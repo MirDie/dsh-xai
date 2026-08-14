@@ -1,10 +1,7 @@
 # Optional SuperGrok / X Premium route over the base composition.
-# A saved agent-default-model setting still wins over this bundle value.
-
-- id: agent-default-model
-  config:
-    provider: xai-oauth
-    model: grok-4.5
+# Do not replace agent-default-model: a saved DeepSeek (or other) default
+# should keep working after this bundle is installed. Users pick
+# xai-oauth / <id> in the composer after signing in.
 
 - insert:
     - id: llm-xai-oauth

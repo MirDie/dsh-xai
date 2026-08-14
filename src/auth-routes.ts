@@ -9,6 +9,14 @@ import type { CatalogSource } from './catalog.ts'
 import { probeGrokAuth } from './grok-import.ts'
 import { safeMessage } from './redact.ts'
 import type { XaiOAuthSession } from './session.ts'
+import {
+  assertSafeAuthorizationUrl,
+  MAX_JSON_BODY_BYTES,
+  RequestBodyTooLargeError,
+  trustedRequest,
+} from './trust.ts'
+
+export { trustedRequest, RequestBodyTooLargeError, MAX_JSON_BODY_BYTES } from './trust.ts'
 
 export const XAI_OAUTH_AUTH_STATUS_PATH = '/plugins/dsh-xai/auth/status'
 export const XAI_OAUTH_AUTH_LOGIN_PATH = '/plugins/dsh-xai/auth/login'
@@ -140,17 +148,11 @@ export class XaiOAuthWebAuth {
 
   private acceptChallenge(challenge: LoginChallenge): void {
     try {
-      const url = new URL(challenge.url)
-      if (url.protocol !== 'https:') {
-        const error = new Error('xAI returned an unsafe authorization URL')
-        this.cancellation?.abort(error)
-        this.rejectChallenge(error)
-        return
-      }
-    } catch {
-      const error = new Error('xAI returned an invalid authorization URL')
-      this.cancellation?.abort(error)
-      this.rejectChallenge(error)
+      assertSafeAuthorizationUrl(challenge.url)
+    } catch (error: unknown) {
+      const rejected = error instanceof Error ? error : new Error('xAI returned an invalid authorization URL')
+      this.cancellation?.abort(rejected)
+      this.rejectChallenge(rejected)
       return
     }
     this.challenge = challenge
@@ -184,24 +186,15 @@ export class XaiOAuthWebAuth {
   }
 }
 
-function trustedRequest(req: IncomingMessage): boolean {
-  const remote = req.socket.remoteAddress
-  if (remote !== '127.0.0.1' && remote !== '::1' && remote !== '::ffff:127.0.0.1') return false
-  if (req.headers['sec-fetch-site'] === 'cross-site') return false
-  const host = req.headers.host
-  if (host === undefined) return false
-  const origin = req.headers.origin
-  if (origin === undefined) return true
-  try {
-    return new URL(origin).host === new URL(`http://${host}`).host
-  } catch {
-    return false
-  }
-}
-
-async function readJson(req: IncomingMessage): Promise<unknown> {
+export async function readJson(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  let size = 0
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    size += buf.byteLength
+    if (size > MAX_JSON_BODY_BYTES) throw new RequestBodyTooLargeError()
+    chunks.push(buf)
+  }
   const text = Buffer.concat(chunks).toString('utf8').trim()
   if (text.length === 0) return {}
   return JSON.parse(text) as unknown
@@ -277,6 +270,8 @@ export function registerXaiOAuthAuthRoutes(
             await auth.setModels(selected)
             json(res, 200, await auth.status())
           } catch (error: unknown) {
+            if (error instanceof RequestBodyTooLargeError) return json(res, 413, { error: error.message })
+            if (error instanceof SyntaxError) return json(res, 400, { error: 'invalid json' })
             json(res, 500, { error: safeMessage(error) })
           }
         },

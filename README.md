@@ -47,9 +47,9 @@ dsh plugin --profile web exec dsh-xai status
 dsh plugin --profile web exec dsh-xai logout
 ```
 
-The bundle selects `xai-oauth` / `grok-4.5` for new agents. A model already saved in dsh settings still takes precedence.
+This bundle does **not** change the profile's default model. After sign-in, pick `xai-oauth / <id>` in the composer (or save it in Settings → Models). A model already saved in dsh settings still takes precedence.
 
-The Settings page can choose which account models appear in the composer picker (`xai-oauth / <id>`). After updating the plugin, restart `dsh web` if the picker is still empty.
+The Settings page can choose which account chat models appear in the composer picker (`xai-oauth / <id>`). Image, video, and TTS ids from `GET /v1/models` are omitted. After updating the plugin, restart `dsh web` if the picker is still empty.
 
 See [INSTALL.md](INSTALL.md) / [INSTALL.zh.md](INSTALL.zh.md) for the full runbook.
 
@@ -60,7 +60,7 @@ dsh keeps this login separate from the Grok CLI:
 - credentials are stored at `$DSH_HOME/.xai-oauth-auth.json` (`~/.dsh` by default)
 - writes are atomic and token refresh is locked across local dsh processes
 - browser status and diagnostics never return token values
-- `import` copies `~/.grok/auth.json` once and never writes that file
+- `import` copies `$GROK_HOME/auth.json` (default `~/.grok/auth.json`) once and never writes that file
 
 xAI refresh tokens rotate. After import, the next dsh refresh may invalidate Grok CLI until you run `grok login` again. Removing the bundle does not delete the dsh credential; use the account page or `logout`.
 

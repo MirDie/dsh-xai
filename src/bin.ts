@@ -15,12 +15,13 @@ import {
 } from './index.ts'
 import { grokAuthPath } from './grok-import.ts'
 import { safeMessage } from './redact.ts'
+import { assertSafeAuthorizationUrl } from './trust.ts'
 
 type Action = 'login' | 'logout' | 'status' | 'import'
 
 function openBrowser(rawUrl: string): void {
-  const url = new URL(rawUrl)
-  if (url.protocol !== 'https:') throw new Error(`refusing to open non-HTTPS authorization URL from ${url.host}`)
+  const href = assertSafeAuthorizationUrl(rawUrl)
+  const url = new URL(href)
   const command = process.platform === 'win32'
     ? { file: 'rundll32.exe', args: ['url.dll,FileProtocolHandler', url.href] }
     : process.platform === 'darwin'
@@ -78,7 +79,7 @@ function printHelp(): void {
   process.stdout.write([
     'Usage: dsh-xai <login|logout|status|import>',
     '',
-    '  login   sign in with SuperGrok or X Premium (device code)',
+    '  login [--no-browser]  sign in with SuperGrok or X Premium (device code)',
     '  import  copy ~/.grok/auth.json into the dsh store (does not modify Grok CLI)',
     '  logout  remove the dsh credential without changing ~/.grok',
     '  status  report non-secret dsh credential state and visible models',
@@ -97,7 +98,9 @@ export async function run(argv: readonly string[]): Promise<number> {
     return 1
   }
   const action: Action = rawAction
-  if (flags.length > 0) {
+  const useBrowser = !flags.includes('--no-browser')
+  const extra = flags.filter(flag => flag !== '--no-browser')
+  if (extra.length > 0 || (flags.includes('--no-browser') && action !== 'login')) {
     process.stderr.write(`dsh-xai: invalid options for ${action}: ${flags.join(' ')}\n`)
     return 1
   }
@@ -143,7 +146,7 @@ export async function run(argv: readonly string[]): Promise<number> {
         try {
           await loginXaiOAuthSession({
             prompt: prompt => answerPrompt(prompt, (text, options) => readline.question(text, options)),
-            notify: event => notify(event, true),
+            notify: event => notify(event, useBrowser),
           }, session)
         } finally {
           readline.close()

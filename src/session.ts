@@ -18,6 +18,8 @@ import {
 import { materializeLiveModel } from './catalog.ts'
 import { XAI_OAUTH_ROUTE, XAI_PI_PROVIDER } from './ids.ts'
 import { XaiOAuthCredentialStore } from './store.ts'
+import { isTerminalOAuthFailure, MAX_SELECTED_MODELS } from './trust.ts'
+import { safeMessage } from './redact.ts'
 
 const MODELS_CACHE_VERSION = 2
 const MODELS_CACHE_FILENAME = '.xai-oauth-models.json'
@@ -99,13 +101,15 @@ export class XaiOAuthSession {
   private listingError: string | undefined
   private readonly cacheFile: string
   private onCatalogChange: (() => void) | undefined
+  private catalogGeneration = 0
 
   constructor(
     store: XaiOAuthCredentialStore = new XaiOAuthCredentialStore(),
     onCatalogChange?: () => void,
+    options?: { cacheFile?: string },
   ) {
     this.store = store
-    this.cacheFile = modelsCachePath()
+    this.cacheFile = options?.cacheFile ?? modelsCachePath()
     this.baseline = xaiProvider()
     this.models = createModels({ credentials: store })
     this.models.setProvider(this.baseline)
@@ -161,34 +165,66 @@ export class XaiOAuthSession {
     }
   }
 
+  /**
+   * OAuth bearer only. Never falls through to `XAI_API_KEY`.
+   * Terminal refresh failures clear the stored grant.
+   */
+  async accessToken(): Promise<string | undefined> {
+    const stored = await this.store.read(XAI_PI_PROVIDER)
+    if (stored?.type !== 'oauth') return undefined
+    try {
+      const auth = await this.models.getAuth(XAI_PI_PROVIDER)
+      const apiKey = auth?.auth.apiKey
+      return apiKey !== undefined && apiKey.length > 0 ? apiKey : undefined
+    } catch (error) {
+      if (isTerminalOAuthFailure(error)) {
+        await this.store.delete(XAI_PI_PROVIDER)
+      }
+      throw error
+    }
+  }
+
   async refreshLiveCatalog(signal?: AbortSignal): Promise<void> {
-    const auth = await this.models.getAuth(XAI_PI_PROVIDER)
-    const access = auth?.auth.apiKey
+    const generation = this.catalogGeneration
+    let access: string | undefined
+    try {
+      access = await this.accessToken()
+    } catch (error) {
+      if (generation !== this.catalogGeneration) return
+      this.listingError = safeMessage(error)
+      if (this.liveIds === undefined) this.source = 'fallback'
+      return
+    }
     if (access === undefined || access.length === 0) {
       this.listingError = undefined
       return
     }
     try {
       const ids = await fetchLiveModelIds(access, signal)
+      if (generation !== this.catalogGeneration) return
       this.liveIds = ids
       this.source = 'live'
       this.listingError = undefined
       await this.writeCache()
       this.onCatalogChange?.()
     } catch (error) {
-      this.listingError = error instanceof Error ? error.message : String(error)
+      if (generation !== this.catalogGeneration) return
+      this.listingError = safeMessage(error)
       if (this.liveIds === undefined) this.source = 'fallback'
     }
   }
 
   async setSelectedModels(ids: readonly string[]): Promise<void> {
-    const unique = [...new Set(ids.filter(id => id.length > 0))]
+    const available = new Set(this.availableModels().map(model => model.id))
+    const unique = [...new Set(ids.filter(id => id.length > 0 && id.length < 200 && available.has(id)))]
+      .slice(0, MAX_SELECTED_MODELS)
     this.selectedIds = unique.length === 0 ? undefined : unique
     await this.writeCache()
     this.onCatalogChange?.()
   }
 
   async logout(): Promise<void> {
+    this.catalogGeneration += 1
     await this.store.delete(XAI_PI_PROVIDER)
     this.liveIds = undefined
     this.selectedIds = undefined

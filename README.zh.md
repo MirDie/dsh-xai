@@ -40,9 +40,9 @@ dsh plugin --profile web exec dsh-xai status
 dsh plugin --profile web exec dsh-xai logout
 ```
 
-新会话默认选 `xai-oauth` / `grok-4.5`。dsh 里已经存过的默认模型仍然优先。
+本插件**不会**改 profile 的默认模型。登录后在对话的模型选择器里选 `xai-oauth / <id>`（或到 Settings → Models 保存）。dsh 里已经存过的默认模型仍然优先。
 
-设置页可以勾选要出现在模型选择器里的模型。名称形如 `xai-oauth / grok-4.5`。登录后如果选择器还是空的，更新插件并重启 `dsh web`。
+设置页可以勾选要出现在模型选择器里的对话模型。名称形如 `xai-oauth / grok-4.5`。`GET /v1/models` 里的图片、视频、TTS 等 id 会被过滤。登录后如果选择器还是空的，更新插件并重启 `dsh web`。
 
 只有在改这个插件本身时，才需要把仓库拉到本地，再用路径安装：
 
@@ -58,7 +58,7 @@ dsh 的登录和 Grok CLI 是分开的：
 - 凭证写在 `$DSH_HOME/.xai-oauth-auth.json`（默认 `~/.dsh`）
 - 写入是原子的，refresh 会跨本机 dsh 进程加锁
 - 浏览器状态和报错里不会带回 token
-- `import` 只复制一次 `~/.grok/auth.json`，从不写回那个文件
+- `import` 只复制一次 `$GROK_HOME/auth.json`（默认 `~/.grok/auth.json`），从不写回那个文件
 
 xAI 的 refresh token 会轮换。导入之后，dsh 下一次刷新可能让 Grok CLI 掉线，需要再跑一次 `grok login`。卸掉插件不会删除 dsh 凭证；要删请用设置页或 `logout`。
 

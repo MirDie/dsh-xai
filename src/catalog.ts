@@ -10,6 +10,18 @@ import { DEFAULT_XAI_OAUTH_MODEL } from './ids.ts'
 
 export const XAI_MODELS_URL = 'https://api.x.ai/v1/models'
 const BODY_LIMIT_BYTES = 4 * 1024 * 1024
+const LIST_TIMEOUT_MS = 15_000
+const NON_CHAT_MODEL = /imagine|image|video|tts|voice|stt|whisper|embed|realtime|audio/i
+
+/** Chat-capable Grok ids, plus anything already in the installed catalog. */
+export function isSelectableChatModel(
+  id: string,
+  catalogIds?: ReadonlySet<string>,
+): boolean {
+  if (catalogIds?.has(id)) return true
+  if (!id.toLowerCase().startsWith('grok')) return false
+  return !NON_CHAT_MODEL.test(id)
+}
 
 export type CatalogSource = 'live' | 'cache' | 'fallback'
 
@@ -76,7 +88,10 @@ export function mergeLiveCatalog(
   liveIds: readonly string[] | undefined,
 ): Model<Api>[] {
   if (liveIds === undefined || liveIds.length === 0) return [...catalog]
-  return liveIds.map(id => materializeLiveModel(id, catalog))
+  const catalogIds = new Set(catalog.map(model => model.id))
+  const chatIds = liveIds.filter(id => isSelectableChatModel(id, catalogIds))
+  if (chatIds.length === 0) return [...catalog]
+  return chatIds.map(id => materializeLiveModel(id, catalog))
 }
 
 export function preferredXaiOAuthModelFrom(models: readonly { id: string }[]): string {
@@ -91,6 +106,8 @@ export async function fetchLiveModelIds(
   accessToken: string,
   signal?: AbortSignal,
 ): Promise<string[]> {
+  const timeout = AbortSignal.timeout(LIST_TIMEOUT_MS)
+  const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
   let response: Response
   try {
     response = await fetch(XAI_MODELS_URL, {
@@ -98,10 +115,12 @@ export async function fetchLiveModelIds(
         accept: 'application/json',
         authorization: `Bearer ${accessToken}`,
       },
-      signal,
+      signal: combined,
     })
   } catch (error) {
-    if (signal?.aborted) throw new Error('Live model listing was cancelled')
+    if (combined.aborted) {
+      throw new Error(signal?.aborted ? 'Live model listing was cancelled' : 'xAI model listing timed out')
+    }
     throw new Error('xAI model listing is unreachable')
   }
   const raw = Buffer.from(await response.arrayBuffer())

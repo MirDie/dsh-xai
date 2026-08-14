@@ -86,6 +86,7 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
   if (t === undefined) throw new Error('xAI Grok settings requires its translation function')
   const [status, setStatus] = useState<AccountStatus>({ status: 'loading' })
   const [busy, setBusy] = useState(false)
+  const [popupBlocked, setPopupBlocked] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -106,10 +107,12 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
     const popup = window.open('about:blank', '_blank')
     if (popup !== null) popup.opener = null
     setBusy(true)
+    setPopupBlocked(false)
     setStatus({ status: 'signing-in' })
     try {
       const challenge = await jsonRequest<LoginChallenge>(LOGIN_PATH, 'POST')
       if (popup === null) {
+        setPopupBlocked(true)
         setStatus({ status: 'signing-in', url: challenge.url, ...challenge.userCode === undefined ? {} : { userCode: challenge.userCode } })
         return
       }
@@ -242,7 +245,7 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
         {status.status === 'signing-in' && status.url !== undefined
           ? (
               <p style={bodyStyle}>
-                {t(status.userCode === undefined && window.open === undefined ? 'popupBlocked' : 'openUrl')}
+                {t(popupBlocked ? 'popupBlocked' : 'openUrl')}
                 {' '}
                 <a href={status.url} target="_blank" rel="noreferrer" style={linkStyle}>{status.url}</a>
               </p>

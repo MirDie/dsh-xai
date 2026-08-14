@@ -51,7 +51,7 @@ Web UI：
 1. `dsh web`（或 `dsh --profile web`）
 2. 设置 → xAI Grok → 使用 SuperGrok 登录
 3. 在浏览器里批准
-4. 模型选择器里选 `xai-oauth` / `grok-4.5`（如果还没自动选中）
+4. 在对话的模型选择器里选 `xai-oauth` / 某个 Grok 对话模型（如果还没选中）。本插件不会改掉 profile 原来的默认模型。
 
 也可以导入本机已经登录过的 Grok CLI：设置页的「从 Grok CLI 导入」，或：
 
@@ -66,7 +66,7 @@ dsh plugin --profile web exec dsh-xai login
 dsh plugin --profile web exec dsh-xai status
 ```
 
-`import` 只读 `~/.grok/auth.json`，只写 `$DSH_HOME/.xai-oauth-auth.json`。登录或导入成功后会请求 `GET /v1/models`，并缓存账号可见的模型 id。
+`import` 只读 `$GROK_HOME/auth.json`（默认 `~/.grok/auth.json`），只写 `$DSH_HOME/.xai-oauth-auth.json`。登录或导入成功后会请求 `GET /v1/models`，并缓存账号可见的对话模型 id。
 
 ## 卸载
 

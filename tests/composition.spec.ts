@@ -6,10 +6,9 @@ import { describe, expect, it } from 'vitest'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('bundle composition', () => {
-  it('inserts the xai-oauth host plugin and a Grok default model', async () => {
+  it('inserts the xai-oauth host plugin without replacing the default model', async () => {
     const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')
-    expect(patch).toContain('provider: xai-oauth')
-    expect(patch).toMatch(/model: grok-4\./)
+    expect(patch).not.toContain('id: agent-default-model')
     expect(patch).toContain('id: llm-xai-oauth')
     expect(patch).toContain('name: dsh-xai')
   })

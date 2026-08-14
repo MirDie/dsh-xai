@@ -94,9 +94,16 @@ function walk(value: unknown, key: string): Candidate[] {
   return Object.entries(value).flatMap(([child, nested]) => walk(nested, child))
 }
 
-/** Resolve the Grok CLI auth document. */
-export function grokAuthPath(home: string = homedir()): string {
-  return resolve(join(home, '.grok', 'auth.json'))
+/**
+ * Resolve the Grok CLI auth document.
+ * With no `home` argument, honor `GROK_HOME` (the Grok config root) then `~/.grok`.
+ * An explicit `home` is treated as the user home, matching `~/.grok/auth.json`.
+ */
+export function grokAuthPath(home?: string): string {
+  if (home !== undefined) return resolve(join(home, '.grok', 'auth.json'))
+  const grokHome = process.env['GROK_HOME']?.trim()
+  if (grokHome !== undefined && grokHome.length > 0) return resolve(join(grokHome, 'auth.json'))
+  return resolve(join(homedir(), '.grok', 'auth.json'))
 }
 
 /** Parse a Grok CLI / generic OAuth document into a pi-ai credential. */

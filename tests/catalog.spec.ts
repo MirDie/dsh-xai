@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'
 import {
   extractModelIds,
+  isSelectableChatModel,
   materializeLiveModel,
   mergeLiveCatalog,
   preferredXaiOAuthModelFrom,
@@ -29,6 +30,12 @@ describe('mergeLiveCatalog', () => {
     expect(mergeLiveCatalog(catalog, []).map(model => model.id)).toEqual(catalog.map(model => model.id))
   })
 
+  it('drops non-chat live ids and falls back when nothing remains', () => {
+    const merged = mergeLiveCatalog(catalog, ['grok-4.5', 'grok-imagine-image', 'grok-imagine-video'])
+    expect(merged.map(model => model.id)).toEqual(['grok-4.5'])
+    expect(mergeLiveCatalog(catalog, ['grok-imagine-image']).map(model => model.id)).toEqual(catalog.map(model => model.id))
+  })
+
   it('narrows to live ids and inherits catalog metadata', () => {
     const merged = mergeLiveCatalog(catalog, ['grok-4.5', 'grok-4.6'])
     expect(merged.map(model => model.id)).toEqual(['grok-4.5', 'grok-4.6'])
@@ -44,6 +51,16 @@ describe('materializeLiveModel', () => {
   it('uses the build template for code-fast ids', () => {
     const model = materializeLiveModel('grok-code-fast-1', catalog)
     expect(model.api).toBe(catalog.find(entry => entry.id === 'grok-build-0.1')?.api)
+  })
+})
+
+describe('isSelectableChatModel', () => {
+  it('keeps grok chat ids and drops media ids', () => {
+    expect(isSelectableChatModel('grok-4.6')).toBe(true)
+    expect(isSelectableChatModel('grok-build-0.1')).toBe(true)
+    expect(isSelectableChatModel('grok-imagine-image')).toBe(false)
+    expect(isSelectableChatModel('grok-imagine-video')).toBe(false)
+    expect(isSelectableChatModel('tts-1')).toBe(false)
   })
 })
 

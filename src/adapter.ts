@@ -8,9 +8,9 @@ import { preferredXaiOAuthModelFrom } from './catalog.ts'
 import {
   XAI_OAUTH_ROUTE,
   XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS,
-  XAI_PI_PROVIDER,
 } from './ids.ts'
 import type { XaiOAuthSession } from './session.ts'
+import { isTerminalOAuthFailure } from './trust.ts'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'
 
 /** Prefer grok-4.6 when the current (live or installed) list has it. */
@@ -39,15 +39,25 @@ export function createXaiOAuthAdapter(
       piProvider: session.provider(),
     }]]),
     resolveApiKey: async () => {
-      const auth = await session.models.getAuth(XAI_PI_PROVIDER)
-      const apiKey = auth?.auth.apiKey
-      if (apiKey === undefined || apiKey.length === 0) {
-        throw new LlmError(
-          'xAI Grok is not signed in. Open Settings → xAI Grok and sign in with SuperGrok or X Premium.',
-          'MISSING_CREDENTIAL',
-        )
+      try {
+        const apiKey = await session.accessToken()
+        if (apiKey === undefined || apiKey.length === 0) {
+          throw new LlmError(
+            'xAI Grok is not signed in. Open Settings → xAI Grok and sign in with SuperGrok or X Premium.',
+            'MISSING_CREDENTIAL',
+          )
+        }
+        return apiKey
+      } catch (error) {
+        if (error instanceof LlmError) throw error
+        if (isTerminalOAuthFailure(error)) {
+          throw new LlmError(
+            'xAI Grok sign-in expired. Open Settings → xAI Grok and sign in again.',
+            'MISSING_CREDENTIAL',
+          )
+        }
+        throw error
       }
-      return apiKey
     },
     resolveAttachments,
   })
