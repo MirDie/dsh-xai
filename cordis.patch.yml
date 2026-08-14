@@ -1,0 +1,11 @@
+# Optional SuperGrok / X Premium route over the base composition.
+# A saved agent-default-model setting still wins over this bundle value.
+
+- id: agent-default-model
+  config:
+    provider: xai-oauth
+    model: grok-4.5
+
+- insert:
+    - id: llm-xai-oauth
+      name: dsh-xai
