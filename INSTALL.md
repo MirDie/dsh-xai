@@ -24,14 +24,14 @@ From a DeepSeek Harness source checkout, prefix with `pnpm`:
 pnpm dsh plugin --profile web add github:MirDie/dsh-xai
 ```
 
-If pnpm ≥10 blocks the `prepare` build on a git spec, copy the printed package key into the profile's `pnpm-workspace.yaml`:
+This repository ships `lib/`, so a git install does not run build scripts. If you installed an older commit and pnpm still asks for `allowBuilds` / `onlyBuiltDependencies`, put the printed package key in that profile's `pnpm-workspace.yaml` and re-run `add`:
 
 ```yaml
 allowBuilds:
   dsh-xai: true
 ```
 
-and re-run `add`. This repository already ships `lib/`, so a local checkout used for development does not need a rebuild after `npm run build`.
+The file is usually `~/.dsh/profiles/web/pnpm-workspace.yaml` (create it if missing). Do not use `npm dsh` or `pnpm dsh` from your home directory.
 
 ## Clone only for development
 

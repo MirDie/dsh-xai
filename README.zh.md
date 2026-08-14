@@ -22,12 +22,14 @@ dsh plugin --profile web add github:MirDie/dsh-xai
 dsh web
 ```
 
-如果本机是从 dsh 源码跑的，前面加 `pnpm`：
+用 `npx` 起的 Web、PATH 里没有 `dsh` 时，把前面的 `dsh` 换成 `npx @deepseek-ai/dsh`：
 
 ```sh
-pnpm dsh plugin --profile web add github:MirDie/dsh-xai
-pnpm dsh web
+npx @deepseek-ai/dsh plugin --profile web add github:MirDie/dsh-xai
+npx @deepseek-ai/dsh web
 ```
+
+不要写 `npm dsh` 或在家目录里写 `pnpm dsh`。`npx` 只是临时跑一次，不会安装全局 `dsh` 命令。
 
 打开 **设置 → xAI Grok → 使用 SuperGrok 登录**。插件会走 device-code，打开验证链接，你在浏览器里批准即可。无头 / SSH 可以用 CLI：
 

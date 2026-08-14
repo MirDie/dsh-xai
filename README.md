@@ -22,11 +22,14 @@ dsh plugin --profile web add github:MirDie/dsh-xai
 dsh web
 ```
 
-From a DeepSeek Harness source checkout, prefix with `pnpm`:
+If you started the UI with `npx` and have no `dsh` on PATH, use the same package as the CLI:
 
 ```sh
-pnpm dsh plugin --profile web add github:MirDie/dsh-xai
+npx @deepseek-ai/dsh plugin --profile web add github:MirDie/dsh-xai
+npx @deepseek-ai/dsh web
 ```
+
+Do not run `npm dsh` or `pnpm dsh` from your home directory. `npx` does not install a global `dsh` command.
 
 Clone only when you are changing this plugin:
 

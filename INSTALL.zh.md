@@ -25,14 +25,14 @@ dsh web
 pnpm dsh plugin --profile web add github:MirDie/dsh-xai
 ```
 
-如果 pnpm ≥10 拦截了 git 依赖的 `prepare` 构建，把提示里的包名写进该 profile 的 `pnpm-workspace.yaml`：
+仓库已经带构建好的 `lib/`，git 安装不跑构建脚本。若你装到的还是旧提交、pnpm 仍提示 `allowBuilds` / `onlyBuiltDependencies`，把提示里的包名写进该 profile 的 `pnpm-workspace.yaml` 后再 `add` 一次：
 
 ```yaml
 allowBuilds:
   dsh-xai: true
 ```
 
-然后重新执行 `add`。仓库里已经带了构建好的 `lib/`，一般不需要再本地编译。
+文件一般在 `~/.dsh/profiles/web/pnpm-workspace.yaml`（没有就新建）。不要改成 `npm dsh` 或在家目录跑 `pnpm dsh`。
 
 ## 只有开发时才 clone
 
