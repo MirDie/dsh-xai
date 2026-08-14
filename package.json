@@ -70,6 +70,19 @@
     "@deepseek-ai/schemastery": "^3.18.1-rc.1",
     "react": "^18.2.0"
   },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": { "optional": true },
+    "@deepseek-ai/cordis": { "optional": true },
+    "@deepseek-ai/dsh-atomic-write": { "optional": true },
+    "@deepseek-ai/dsh-attachment": { "optional": true },
+    "@deepseek-ai/dsh-home-paths": { "optional": true },
+    "@deepseek-ai/dsh-host-webserver": { "optional": true },
+    "@deepseek-ai/dsh-invariants": { "optional": true },
+    "@deepseek-ai/dsh-llm": { "optional": true },
+    "@deepseek-ai/dsh-llm-pi-ai": { "optional": true },
+    "@deepseek-ai/schemastery": { "optional": true },
+    "react": { "optional": true }
+  },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.82.1",
     "@deepseek-ai/cordis": "^4.0.1",
