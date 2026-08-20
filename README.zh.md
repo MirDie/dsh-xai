@@ -51,6 +51,21 @@ git clone https://github.com/MirDie/dsh-xai.git
 dsh plugin --profile web add ./dsh-xai
 ```
 
+## 自定义 composition 的 reasoning 默认值
+
+`xai-oauth` 插件支持可选的、作用于整条路由的 `reasoning` 默认值。它适合自定义 Cordis composition，例如需要固定请求某一思考档位的 ACP leaf：
+
+```yaml
+- id: llm-xai-oauth
+  name: dsh-xai
+  config:
+    reasoning: high
+```
+
+可选值为 `off`、`minimal`、`low`、`medium`、`high`、`xhigh` 和 `max`；单个模型可能只支持其中一部分。插件的 `grok-4.6` 目录项支持 `high`。
+
+不填写 `reasoning` 时，会保留 pi-ai 的 provider 默认行为。这个选项不会在设置页增加控件，也不会按 agent 或每次请求选择档位；这些场景可以继续不设置路由默认值。
+
 ## 凭证
 
 dsh 的登录和 Grok CLI 是分开的：
