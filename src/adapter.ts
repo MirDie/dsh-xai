@@ -4,6 +4,7 @@ import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { preferredXaiOAuthModelFrom } from './catalog.ts'
 import {
   XAI_OAUTH_ROUTE,
@@ -28,6 +29,7 @@ export function preferredXaiOAuthModel(
 export function createXaiOAuthAdapter(
   session: XaiOAuthSession,
   resolveAttachments: () => AttachmentStore | undefined,
+  reasoning?: ModelThinkingLevel,
 ): PiAiAdapter {
   return new PiAiAdapter({
     profiles: () => new Map<string, ResolvedPiAiProviderProfile>([[XAI_OAUTH_ROUTE, {
@@ -37,6 +39,7 @@ export function createXaiOAuthAdapter(
       retryPolicy: resolveRetryPolicy(undefined, 'dsh-xai retryPolicy'),
       configuredMaxTokens: new Map(),
       piProvider: session.provider(),
+      ...reasoning === undefined ? {} : { reasoning },
     }]]),
     resolveApiKey: async () => {
       const auth = await session.models.getAuth(XAI_PI_PROVIDER)

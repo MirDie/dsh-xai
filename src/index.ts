@@ -9,6 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import { createXaiOAuthAdapter } from './adapter.ts'
 import { registerXaiOAuthAuthRoutes } from './auth-routes.ts'
 import { XAI_OAUTH_ROUTE } from './ids.ts'
@@ -62,23 +63,49 @@ export const name = 'llm-xai-oauth'
 /** LLM registry required before the subscription route can register. */
 export const inject = ['llm']
 
-/** Reserved for later knobs; the first release has no tunable fields. */
-export interface Config {}
+/**
+ * Every pi-ai thinking level this plugin may pin. The `Record` key type fails
+ * compilation if pi-ai adds or removes a level the schema has not classified.
+ */
+const REASONING_LEVEL_GATE: Record<ModelThinkingLevel, true> = {
+  off: true,
+  minimal: true,
+  low: true,
+  medium: true,
+  high: true,
+  xhigh: true,
+  max: true,
+}
+const REASONING_LEVELS = Object.keys(REASONING_LEVEL_GATE) as unknown as readonly [
+  ModelThinkingLevel,
+  ...ModelThinkingLevel[],
+]
 
-export const Config: z<Config> = z.object({})
+/** Cordis knobs for the xai-oauth route. Omitted fields keep provider defaults. */
+export interface Config {
+  /**
+   * Provider-neutral pi-ai reasoning level for every model on this route.
+   * Omission leaves the request unset so pi-ai uses the provider default.
+   */
+  reasoning?: ModelThinkingLevel
+}
+
+export const Config: z<Config> = z.object({
+  reasoning: z.union(REASONING_LEVELS),
+})
 
 /**
  * Register the `xai-oauth` LLM route with a provider-native OAuth store.
  * @param ctx - plugin context carrying the LLM registry plus optional web server.
  */
-export function apply(ctx: Context, _config: Config): void {
+export function apply(ctx: Context, config: Config): void {
   const session = new XaiOAuthSession(new XaiOAuthCredentialStore(), () => {
     ctx.emit('llm/adapters-updated')
   })
   void session.loadCachedCatalog().then(() => session.refreshLiveCatalog())
   ctx.llm.registerAdapter(
     [XAI_OAUTH_ROUTE],
-    createXaiOAuthAdapter(session, () => ctx.get('attachments')),
+    createXaiOAuthAdapter(session, () => ctx.get('attachments'), config.reasoning),
   )
   ctx.inject(['webServer'], webCtx => registerXaiOAuthAuthRoutes(webCtx, session))
 }
