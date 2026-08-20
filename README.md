@@ -53,6 +53,21 @@ The Settings page can choose which account models appear in the composer picker 
 
 See [INSTALL.md](INSTALL.md) / [INSTALL.zh.md](INSTALL.zh.md) for the full runbook.
 
+## Reasoning default for custom compositions
+
+The `xai-oauth` plugin accepts an optional, route-wide `reasoning` default. This is intended for custom Cordis compositions such as an ACP leaf that should consistently request one thinking level:
+
+```yaml
+- id: llm-xai-oauth
+  name: dsh-xai
+  config:
+    reasoning: high
+```
+
+Valid values are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; individual models may support only a subset. `high` is supported by the plugin's `grok-4.6` catalog entry.
+
+Omit `reasoning` to preserve pi-ai's provider default. This option does not add a Settings control or choose a value per agent or per turn; those callers can continue to leave the route default unset.
+
 ## Credentials
 
 dsh keeps this login separate from the Grok CLI:
