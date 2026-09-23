@@ -1,6 +1,6 @@
 import z from "@deepseek-ai/schemastery";
 import { PiAiAdapter } from "@deepseek-ai/dsh-llm-pi-ai";
-import { Api, AuthInteraction, Credential, CredentialInfo, CredentialStore, Model, MutableModels, OAuthCredential, Provider } from "@earendil-works/pi-ai";
+import { Api, AuthInteraction, Credential, CredentialInfo, CredentialStore, Model, ModelThinkingLevel, MutableModels, OAuthCredential, Provider } from "@earendil-works/pi-ai";
 import { Context } from "@deepseek-ai/cordis";
 import { AttachmentStore } from "@deepseek-ai/dsh-attachment";
 //#region src/catalog.d.ts
@@ -73,7 +73,7 @@ declare function preferredXaiOAuthModel(models?: readonly {
  * The public pi-ai adapter owns streaming, tools, reasoning, and compaction;
  * this plugin supplies a refreshable OAuth token and an account model list.
  */
-declare function createXaiOAuthAdapter(session: XaiOAuthSession, resolveAttachments: () => AttachmentStore | undefined): PiAiAdapter;
+declare function createXaiOAuthAdapter(session: XaiOAuthSession, resolveAttachments: () => AttachmentStore | undefined, reasoning?: ModelThinkingLevel): PiAiAdapter;
 //#endregion
 //#region src/auth.d.ts
 /** Non-secret login state shown by the launcher. */
@@ -162,13 +162,19 @@ declare function safeMessage(error: unknown): string;
 declare const name = "llm-xai-oauth";
 /** LLM registry required before the subscription route can register. */
 declare const inject: string[];
-/** Reserved for later knobs; the first release has no tunable fields. */
-interface Config {}
+/** Cordis knobs for the xai-oauth route. Omitted fields keep provider defaults. */
+interface Config {
+  /**
+   * Provider-neutral pi-ai reasoning level for every model on this route.
+   * Omission leaves the request unset so pi-ai uses the provider default.
+   */
+  reasoning?: ModelThinkingLevel;
+}
 declare const Config: z<Config>;
 /**
  * Register the `xai-oauth` LLM route with a provider-native OAuth store.
  * @param ctx - plugin context carrying the LLM registry plus optional web server.
  */
-declare function apply(ctx: Context, _config: Config): void;
+declare function apply(ctx: Context, config: Config): void;
 //#endregion
 export { type CatalogSource, Config, DEFAULT_XAI_OAUTH_MODEL, type GrokImportProbe, type LoginChallenge, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSession, type XaiOAuthWebAuthStatus, apply, createXaiOAuthAdapter, extractModelIds, fetchLiveModelIds, grokAuthPath, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, inject, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, materializeLiveModel, mergeLiveCatalog, name, parseGrokAuthDocument, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, probeGrokAuth, registerXaiOAuthAuthRoutes, safeMessage, xaiOAuthAuthPath, xaiOAuthAuthStatus };

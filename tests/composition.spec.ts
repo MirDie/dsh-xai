@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { Config } from '../src/index.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -22,5 +23,19 @@ describe('bundle composition', () => {
     expect(manifest.name).toBe('dsh-xai')
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.dsh.client.platform).toBe('web')
+  })
+})
+
+describe('Config', () => {
+  it('accepts an empty object so omission keeps the provider default', () => {
+    expect(Config({})).toEqual({})
+  })
+
+  it('accepts high as a reasoning pin', () => {
+    expect(Config({ reasoning: 'high' })).toEqual({ reasoning: 'high' })
+  })
+
+  it('rejects an unknown reasoning level', () => {
+    expect(() => Config({ reasoning: 'nope' as never })).toThrow()
   })
 })

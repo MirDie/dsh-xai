@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'
 import { xaiProvider } from '@earendil-works/pi-ai/providers/xai'
-import { preferredXaiOAuthModel } from '../src/adapter.ts'
-import { DEFAULT_XAI_OAUTH_MODEL } from '../src/ids.ts'
+import { createXaiOAuthAdapter, preferredXaiOAuthModel } from '../src/adapter.ts'
+import { materializeLiveModel } from '../src/catalog.ts'
+import { DEFAULT_XAI_OAUTH_MODEL, XAI_OAUTH_ROUTE } from '../src/ids.ts'
+import { XaiOAuthSession } from '../src/session.ts'
 
 describe('preferredXaiOAuthModel', () => {
   it('prefers grok-4.6 when the catalog ships it, otherwise grok-4.5', () => {
@@ -32,5 +35,24 @@ describe('XaiOAuthSession.provider', () => {
     const listed = models.getModels(XAI_OAUTH_ROUTE)
     expect(listed.length).toBeGreaterThan(0)
     expect(listed.every(model => model.provider === XAI_OAUTH_ROUTE)).toBe(true)
+  })
+})
+
+describe('createXaiOAuthAdapter reasoning', () => {
+  it('omits a profile default when Config.reasoning is unset', async () => {
+    const adapter = createXaiOAuthAdapter(new XaiOAuthSession(), () => undefined)
+    const info = await adapter.resolveModel(XAI_OAUTH_ROUTE, DEFAULT_XAI_OAUTH_MODEL)
+    expect(info.reasoning?.defaultEffort).toBeUndefined()
+  })
+
+  it('pins high on the xai-oauth profile when Config sets it', async () => {
+    const adapter = createXaiOAuthAdapter(new XaiOAuthSession(), () => undefined, 'high')
+    const info = await adapter.resolveModel(XAI_OAUTH_ROUTE, DEFAULT_XAI_OAUTH_MODEL)
+    expect(info.reasoning?.defaultEffort).toBe('high')
+  })
+
+  it('treats high as a supported level for grok-4.6', () => {
+    const grok46 = materializeLiveModel('grok-4.6')
+    expect(getSupportedThinkingLevels(grok46)).toContain('high')
   })
 })
