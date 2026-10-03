@@ -40,6 +40,10 @@ export function createXaiOAuthAdapter(
       configuredMaxTokens: new Map(),
       piProvider: session.provider(),
       ...reasoning === undefined ? {} : { reasoning },
+      // dsh 0.2 reads this map while describing every model. A missing map
+      // throws and the picker hides the whole provider. dsh 0.1 ignores it,
+      // so the field is spread rather than declared on the 0.1 profile type.
+      ...{ modelErrors: new Map<string, string>() },
     }]]),
     resolveApiKey: async () => {
       const auth = await session.models.getAuth(XAI_PI_PROVIDER)

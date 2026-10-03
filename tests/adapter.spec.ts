@@ -55,4 +55,12 @@ describe('createXaiOAuthAdapter reasoning', () => {
     const grok46 = materializeLiveModel('grok-4.6')
     expect(getSupportedThinkingLevels(grok46)).toContain('high')
   })
+
+  it('supplies the modelErrors map dsh 0.2 reads while describing models', () => {
+    const adapter = createXaiOAuthAdapter(new XaiOAuthSession(), () => undefined)
+    const profiles = (adapter as unknown as {
+      config: { profiles: () => ReadonlyMap<string, { modelErrors?: ReadonlyMap<string, string> }> }
+    }).config.profiles()
+    expect(profiles.get(XAI_OAUTH_ROUTE)?.modelErrors).toBeInstanceOf(Map)
+  })
 })
